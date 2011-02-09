@@ -138,7 +138,8 @@ void mouse (int button, int state, int x, int y)
 	float x_view, y_view;
 	if ((button == GLUT_LEFT_BUTTON) && (state == GLUT_DOWN)) {
 		x_view = (x - Width/2.0) * (VIEW_XMAX-VIEW_XMIN) / Width;
-		y_view = (y - Height/2.0) * (VIEW_YMAX-VIEW_YMIN) / Height;
+		// this line was the cause of so much trouble: always adjust for screen y
+		y_view = ((Height - y) - Height/2.0) * (VIEW_YMAX-VIEW_YMIN) / Height;
 
 		create_bullet(posVec[0], posVec[1], x_view, y_view);
 
@@ -204,7 +205,7 @@ void create_bullet(GLfloat x, GLfloat y, GLfloat x_view, GLfloat y_view) {
 
 		// set its movement vector
 		GLfloat xvec = x_view - x;
-		GLfloat yvec = y - y_view;
+		GLfloat yvec = y_view - y;
 		GLfloat max = fabsf((fabsf(xvec) > fabsf(yvec)) ? xvec : yvec);
 		//printf("Max: %f\n", max);
 
