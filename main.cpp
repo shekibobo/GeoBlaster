@@ -53,8 +53,11 @@ entity bullets[BULLETS_MAX];
 int bullet_count = 0;
 entity enemies[ENEMIES_MAX];
 int enemy_count = 0;
+int enemies_alive = 0;
 
-int spawn_delay = 0;
+int spawn_delay = 500;
+int spawn_timer = 0;
+int wave_size = 4;
 
 //spawning positions for enemies
 GLfloat spawnVec[4][3] = { { 4.5f, 2.25f, ZDRAW },
@@ -91,8 +94,6 @@ int main (int argc, char **argv) {
 
 void init(void) {
   glClearColor(0.1f, 0.1f, 0.1f, 1.1f);
-	
-
 
 }
 
@@ -100,6 +101,14 @@ void display (void) {
   // clear screen to current background color
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  // reset background color
   glLoadIdentity(); // load id matrix to reset drawing locations
+
+	if (spawn_timer == 0 || enemies_alive == 0) {
+		int i;
+		for (i = 0; i < wave_size; i++) {
+			create_enemy();
+		}
+	}
+	spawn_timer = (spawn_timer + 1) % spawn_delay;
 
 	draw_player_ship();
 
@@ -128,8 +137,6 @@ void keyboard(unsigned char key, int x, int y)
 		case (27):// esc
 			exit(0);
 			break;
-		case (' '):
-			create_enemy();
 
 		default:
 			break;
@@ -286,12 +293,12 @@ void enemy_movement(int id) {
 	enemy->posv[1] += enemy->dirv[1] * ENEMY_SPEED;	// y
 
 	// detect out of bounds (plus a buffer distance)
-	if (enemy->posv[0] > VIEW_XMAX + 0.5 ||
-			enemy->posv[0] < VIEW_XMIN - 0.5 ){
+	if (enemy->posv[0] > VIEW_XMAX ||
+			enemy->posv[0] < VIEW_XMIN ){
 		enemy->dirv[0] *= -1; 	//reverse direction if you've hit the border
 	}
-	else if ( enemy->posv[1] > VIEW_YMAX + 0.5 ||
-						enemy->posv[1] < VIEW_YMIN - 0.5) {
+	else if ( enemy->posv[1] > VIEW_YMAX ||
+						enemy->posv[1] < VIEW_YMIN ) {
 		enemy->dirv[1] *= -1;
 	}
 	fflush(stdout);
@@ -300,6 +307,7 @@ void enemy_movement(int id) {
 void create_enemy() {
 	Entity enemy = &enemies[enemy_count];
 	enemy->exists = true;
+	enemies_alive++;
 	if (enemies[enemy_count].exists)
 		printf("enemy %d created\n", enemy_count);
 
