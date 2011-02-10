@@ -14,6 +14,9 @@ void create_enemy(void);
 void bullet_movement(int id);
 void enemy_movement(int id);
 
+int enemy_collision(int);
+GLfloat distance_squared(GLfloat, GLfloat, GLfloat, GLfloat);
+
 void draw_player_ship(void);
 void draw_enemies(void);
 void draw_bullets(void);
@@ -256,6 +259,7 @@ void bullet_movement(int id) {
 	bullet->posv[0] += bullet->dirv[0] * BULLET_SPEED;	// x
 	bullet->posv[1] += bullet->dirv[1] * BULLET_SPEED;	// y
 
+	int hit_enemy = -1; // id of enemy that has been hit
 	// detect out of bounds (plus a buffer distance)
 	if (bullet->posv[0] > VIEW_XMAX + 0.5 ||
 			bullet->posv[0] < VIEW_XMIN - 0.5 ||
@@ -263,6 +267,10 @@ void bullet_movement(int id) {
 			bullet->posv[1] < VIEW_YMIN - 0.5) {
 		bullet->exists = false;
 		printf("bullet %d destroyed at (%f, %f)\n", id, bullet->posv[0], bullet->posv[1]);
+	}
+	else if ((hit_enemy = enemy_collision(id)) != -1) {
+		enemies[hit_enemy].exists = false;
+		bullet->exists = false;
 	}
 	fflush(stdout);
 }
@@ -338,4 +346,24 @@ void create_enemy() {
 	printf(" with vector (%f, %f)\n", enemy->dirv[0], enemy->dirv[1]);
 
 	fflush(stdout);
+}
+
+int enemy_collision(int bullet_id) {
+	Entity bullet = &bullets[bullet_id];
+
+	int i;
+	for (i = 0; i < ENEMIES_MAX; i++) {
+		if (enemies[i].exists == false) continue;
+		if (distance_squared( enemies[i].posv[0], enemies[i].posv[1],
+												  bullet->posv[0], bullet->posv[1]) <
+				powf(bullet->sizef + enemies[i].sizef, 2) ) {
+			return i;
+		}
+
+	}
+	return -1;
+}
+
+GLfloat distance_squared(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2) {
+	return powf(x1 - x2, 2) + powf(y1 - y2, 2);
 }
