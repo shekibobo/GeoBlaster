@@ -224,6 +224,8 @@ void draw_player_ship() {
 	}
 	else {
 		glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+		renderBitmapString (1.0, 0.5, ZDRAW, GLUT_BITMAP_HELVETICA_18,
+												"YOUR SHIP HAS BEEN DESTROYED!\n Press '/' to restart");
 	}
 }
 
