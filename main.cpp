@@ -109,6 +109,11 @@ int main (int argc, char **argv) {
 void init(void) {
   glClearColor(0.1f, 0.1f, 0.1f, 1.1f);
 	create_player_ship();
+	int i;
+	for (i = 0; i < ENEMIES_MAX; i++) {
+		enemies[i].exists = false;
+	}
+	enemies_alive = 0;
 }
 
 void display (void) {
@@ -151,6 +156,8 @@ void keyboard(unsigned char key, int x, int y)
 		case (27):// esc
 			exit(0);
 			break;
+		case ('/'):
+			init();
 
 		default:
 			break;
