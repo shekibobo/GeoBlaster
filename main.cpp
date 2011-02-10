@@ -25,10 +25,10 @@ struct entity {
 
 typedef struct entity* Entity;
 
-#define VIEW_XMAX 5.0
-#define VIEW_XMIN -5.0
-#define VIEW_YMAX 3.0
-#define VIEW_YMIN -3.0
+#define VIEW_XMAX 4.8
+#define VIEW_XMIN -4.8
+#define VIEW_YMAX 2.6
+#define VIEW_YMIN -2.6
 #define BULLETS_MAX 20
 #define ZDRAW -5.0f
 
@@ -195,7 +195,8 @@ void draw_bullets() {
 void create_bullet(GLfloat x, GLfloat y, GLfloat x_view, GLfloat y_view) {
 		Entity bullet = &bullets[bullet_count];
 		bullet->exists = true;
-		if (bullets[bullet_count].exists) printf("bullet %d created\n", bullet_count);
+		if (bullets[bullet_count].exists)
+			printf("bullet %d created\n", bullet_count);
 
 		// set its position as the current player position
 		bullet->posv[0] = x;
@@ -228,11 +229,14 @@ void create_bullet(GLfloat x, GLfloat y, GLfloat x_view, GLfloat y_view) {
 void bullet_movement(int id) {
 	// changes the bullets position based on the direction vector
 	Entity bullet = &bullets[id];
-	bullet->posv[0] += bullet->dirv[0] * 0.05;	//x
-	bullet->posv[1] += bullet->dirv[1] * 0.05;	//y
+	bullet->posv[0] += bullet->dirv[0] * 0.1;	// x
+	bullet->posv[1] += bullet->dirv[1] * 0.1;	// y
 
-	if (bullet->posv[0] > VIEW_XMAX || bullet->posv[0] < VIEW_XMIN ||
-			bullet->posv[1] > VIEW_YMAX || bullet->posv[1] < VIEW_YMIN) {
+	// detect out of bounds (plus a buffer distance)
+	if (bullet->posv[0] > VIEW_XMAX + 0.5 ||
+			bullet->posv[0] < VIEW_XMIN - 0.5 ||
+			bullet->posv[1] > VIEW_YMAX + 0.5 ||
+			bullet->posv[1] < VIEW_YMIN - 0.5) {
 		bullet->exists = false;
 		printf("bullet %d destroyed at (%f, %f)\n", id, bullet->posv[0], bullet->posv[1]);
 	}
