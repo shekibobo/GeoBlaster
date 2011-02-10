@@ -9,6 +9,7 @@ void keyboard(unsigned char key, int x, int y);
 void keyboardUp(unsigned char key, int x, int y);
 void mouse (int button, int state, int x, int y);
 void sphere_movement(void);
+void create_player_ship(void);
 void create_bullet(GLfloat, GLfloat, GLfloat, GLfloat);
 void create_enemy(void);
 void bullet_movement(int id);
@@ -21,6 +22,14 @@ void draw_player_ship(void);
 void draw_enemies(void);
 void draw_bullets(void);
 
+struct ship {
+	bool exists;
+	int lives;
+	GLfloat colorv[3];
+	GLfloat posv[3];
+	GLfloat sizef;
+};
+
 struct entity {
 	bool exists;
 	GLfloat colorv[3];
@@ -31,6 +40,9 @@ struct entity {
 
 typedef struct entity* Entity;
 
+
+
+#define SHIP_SIZE 0.2f
 #define VIEW_XMAX 4.8
 #define VIEW_XMIN -4.8
 #define VIEW_YMAX 2.6
@@ -43,9 +55,8 @@ typedef struct entity* Entity;
 #define MOVE_INCREMENT 0.05f	//movement of the player ship
 
 // global color vector for use with readPixels()
-GLfloat colorVec[3] = {0.0,0.0,0.0};
 
-GLfloat posVec[3] = { 0.0f, 0.0f, ZDRAW };
+struct ship player_ship;
 
 GLsizei Height = 450;
 GLsizei Width = 800;
@@ -97,7 +108,7 @@ int main (int argc, char **argv) {
 
 void init(void) {
   glClearColor(0.1f, 0.1f, 0.1f, 1.1f);
-
+	create_player_ship();
 }
 
 void display (void) {
@@ -167,7 +178,7 @@ void mouse (int button, int state, int x, int y)
 		// this line was the cause of so much trouble: always adjust for screen y
 		y_view = ((Height - y) - Height/2.0) * (VIEW_YMAX-VIEW_YMIN) / Height;
 
-		create_bullet(posVec[0], posVec[1], x_view, y_view);
+		create_bullet(player_ship.posv[0], player_ship.posv[1], x_view, y_view);
 
 		printf("Clicked at (%f, %f)\n", x_view, y_view);
 		fflush(stdout);
@@ -178,27 +189,32 @@ void mouse (int button, int state, int x, int y)
 }
 
 void draw_player_ship() {
-	glPushMatrix();
-		sphere_movement();
-		glTranslatef(posVec[0], posVec[1], posVec[2]);
-		glColor3f(1.0, 0.5, 0.0);
-		glutWireSphere(0.2, 6, 6);
-	glPopMatrix();
+	if (player_ship.exists) {
+		glPushMatrix();
+			sphere_movement();
+			glTranslatef(player_ship.posv[0], player_ship.posv[1], player_ship.posv[2]);
+			glColor3f(1.0, 0.5, 0.0);
+			glutWireSphere(SHIP_SIZE, 6, 6);
+		glPopMatrix();
+	}
+	else {
+		glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+	}
 }
 
 void sphere_movement()
 {
 	// move up or down
 		if (keyStates['w'] || keyStates['W'])
-			posVec[1] += ( posVec[1] > VIEW_YMAX ? 0 : MOVE_INCREMENT);
+			player_ship.posv[1] += ( player_ship.posv[1] > VIEW_YMAX ? 0 : MOVE_INCREMENT);
 		if (keyStates['s'] || keyStates['S'])
-			posVec[1] -= ( posVec[1] < VIEW_YMIN ? 0 : MOVE_INCREMENT);
+			player_ship.posv[1] -= ( player_ship.posv[1] < VIEW_YMIN ? 0 : MOVE_INCREMENT);
 
 	// move left or right
 	if (keyStates['a'] || keyStates['A'])
-		posVec[0] -= ( posVec[0] < VIEW_XMIN ? 0 : MOVE_INCREMENT);
+		player_ship.posv[0] -= ( player_ship.posv[0] < VIEW_XMIN ? 0 : MOVE_INCREMENT);
 	if (keyStates['d'] || keyStates['D'])
-		posVec[0] += ( posVec[0] > VIEW_XMAX ? 0 : MOVE_INCREMENT);
+		player_ship.posv[0] += ( player_ship.posv[0] > VIEW_XMAX ? 0 : MOVE_INCREMENT);
 }
 
 void draw_bullets() {
@@ -270,6 +286,7 @@ void bullet_movement(int id) {
 	}
 	else if ((hit_enemy = enemy_collision(id)) != -1) {
 		enemies[hit_enemy].exists = false;
+		enemies_alive--;
 		bullet->exists = false;
 	}
 	fflush(stdout);
@@ -308,6 +325,13 @@ void enemy_movement(int id) {
 	else if ( enemy->posv[1] > VIEW_YMAX ||
 						enemy->posv[1] < VIEW_YMIN ) {
 		enemy->dirv[1] *= -1;
+	}
+	else if ( distance_squared(enemy->posv[0], enemy->posv[1],
+														 player_ship.posv[0], player_ship.posv[1]) <
+					 powf(enemy->sizef + SHIP_SIZE, 2)) {
+		enemy->exists = false;
+		player_ship.lives--;
+		if (player_ship.lives <= 0) player_ship.exists = false;
 	}
 	fflush(stdout);
 }
@@ -355,7 +379,7 @@ int enemy_collision(int bullet_id) {
 	for (i = 0; i < ENEMIES_MAX; i++) {
 		if (enemies[i].exists == false) continue;
 		if (distance_squared( enemies[i].posv[0], enemies[i].posv[1],
-												  bullet->posv[0], bullet->posv[1]) <
+												  bullet->posv[0], bullet->posv[1]) <=
 				powf(bullet->sizef + enemies[i].sizef, 2) ) {
 			return i;
 		}
@@ -366,4 +390,18 @@ int enemy_collision(int bullet_id) {
 
 GLfloat distance_squared(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2) {
 	return powf(x1 - x2, 2) + powf(y1 - y2, 2);
+}
+
+void create_player_ship() {
+	player_ship.exists = true;
+
+	player_ship.posv[0] = 0;
+	player_ship.posv[1] = 0;
+	player_ship.posv[2] = ZDRAW;
+
+	player_ship.lives = 3;
+
+	player_ship.colorv[0] = 1.0f;
+	player_ship.colorv[1] = 0.5f;
+	player_ship.colorv[2] = 0.0f;
 }
