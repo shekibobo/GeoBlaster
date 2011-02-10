@@ -12,8 +12,11 @@ void sphere_movement(void);
 void create_player_ship(void);
 void create_bullet(GLfloat, GLfloat, GLfloat, GLfloat);
 void create_enemy(void);
-void bullet_movement(int id);
-void enemy_movement(int id);
+void bullet_movement(int);
+void enemy_movement(int);
+void kill_enemy(int);
+
+void increase_difficulty(void);
 
 int enemy_collision(int);
 GLfloat distance_squared(GLfloat, GLfloat, GLfloat, GLfloat);
@@ -21,6 +24,8 @@ GLfloat distance_squared(GLfloat, GLfloat, GLfloat, GLfloat);
 void draw_player_ship(void);
 void draw_enemies(void);
 void draw_bullets(void);
+void draw_hud(void);
+void renderBitmapString(float, float, float, void*, char*);
 
 struct ship {
 	bool exists;
@@ -36,6 +41,7 @@ struct entity {
 	GLfloat posv[3];
 	GLfloat dirv[3];
 	GLfloat sizef;
+	int kill_points;
 };
 
 typedef struct entity* Entity;
@@ -48,7 +54,7 @@ typedef struct entity* Entity;
 #define VIEW_YMAX 2.6
 #define VIEW_YMIN -2.6
 #define BULLETS_MAX 20
-#define ENEMIES_MAX 50
+#define ENEMIES_MAX 500
 #define ZDRAW -5.0f
 #define BULLET_SPEED 0.1
 #define ENEMY_SPEED 0.01
@@ -66,12 +72,14 @@ bool keyStates[256];
 entity bullets[BULLETS_MAX];
 int bullet_count = 0;
 entity enemies[ENEMIES_MAX];
-int enemy_count = 0;
-int enemies_alive = 0;
+int enemy_count;
+int enemies_alive;
 
-int spawn_delay = 500;
-int spawn_timer = 0;
-int wave_size = 4;
+int spawn_delay;
+int spawn_timer;
+int wave_size;
+
+int points;
 
 //spawning positions for enemies
 GLfloat spawnVec[4][3] = { { 4.5f, 2.25f, ZDRAW },
@@ -87,7 +95,7 @@ int main (int argc, char **argv) {
   glutInitWindowSize (Width, Height);  //set width, height of the window
   glutInitWindowPosition (100, 100);  // set position of the window
 
-  glutCreateWindow ("Project 1: Joshua Kovach");  // sets the title for the window
+  glutCreateWindow ("Virus Wars: Joshua Kovach");  // sets the title for the window
 
   glutDisplayFunc(display);
 	glutIdleFunc(display);
@@ -113,13 +121,22 @@ void init(void) {
 	for (i = 0; i < ENEMIES_MAX; i++) {
 		enemies[i].exists = false;
 	}
+	enemy_count = 0;
 	enemies_alive = 0;
+	spawn_timer = 0;
+	spawn_delay = 500;
+	wave_size = 4;
+	points = 0;
 }
 
 void display (void) {
   // clear screen to current background color
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  // reset background color
   glLoadIdentity(); // load id matrix to reset drawing locations
+
+	increase_difficulty();
+
+	draw_hud();
 
 	if (spawn_timer == 0 || enemies_alive == 0) {
 		int i;
@@ -136,6 +153,7 @@ void display (void) {
 	draw_bullets();
 
   //glFlush();  // flush buffers to the screen
+	fflush(stdout);
 	glutSwapBuffers();
 }
 
@@ -270,6 +288,8 @@ void create_bullet(GLfloat x, GLfloat y, GLfloat x_view, GLfloat y_view) {
 
 	bullet->sizef = 0.05f;
 
+	bullet->kill_points = 0;
+
 	printf("bullet created at (%f, %f)", bullet->posv[0], bullet->posv[1]);
 	printf(" with vector (%f, %f)\n", bullet->dirv[0], bullet->dirv[1]);
 
@@ -292,8 +312,7 @@ void bullet_movement(int id) {
 		printf("bullet %d destroyed at (%f, %f)\n", id, bullet->posv[0], bullet->posv[1]);
 	}
 	else if ((hit_enemy = enemy_collision(id)) != -1) {
-		enemies[hit_enemy].exists = false;
-		enemies_alive--;
+		kill_enemy(hit_enemy);
 		bullet->exists = false;
 	}
 	fflush(stdout);
@@ -336,7 +355,7 @@ void enemy_movement(int id) {
 	else if ( distance_squared(enemy->posv[0], enemy->posv[1],
 														 player_ship.posv[0], player_ship.posv[1]) <
 					 powf(enemy->sizef + SHIP_SIZE, 2)) {
-		enemy->exists = false;
+		kill_enemy(id);
 		player_ship.lives--;
 		if (player_ship.lives <= 0) player_ship.exists = false;
 	}
@@ -363,8 +382,8 @@ void create_enemy() {
 	//GLfloat max = fabsf((fabsf(xvec) > fabsf(yvec)) ? xvec : yvec);
 	//printf("Max: %f\n", max);
 
-	enemy->dirv[0] = xvec;
-	enemy->dirv[1] = yvec;
+	enemy->dirv[0] = xvec * (rand() % 3) + 1;
+	enemy->dirv[1] = yvec * (rand() % 3) + 1;
 	enemy->dirv[2] = 0;	// not going anywhere depthwise
 
 	enemy->colorv[0] = 1.0f;
@@ -372,6 +391,7 @@ void create_enemy() {
 	enemy->colorv[2] = 0.0f;
 
 	enemy->sizef = 0.1f;
+	enemy->kill_points = 100;
 
 	printf("enemy created at (%f, %f)", enemy->posv[0], enemy->posv[1]);
 	printf(" with vector (%f, %f)\n", enemy->dirv[0], enemy->dirv[1]);
@@ -390,7 +410,6 @@ int enemy_collision(int bullet_id) {
 				powf(bullet->sizef + enemies[i].sizef, 2) ) {
 			return i;
 		}
-
 	}
 	return -1;
 }
@@ -411,4 +430,39 @@ void create_player_ship() {
 	player_ship.colorv[0] = 1.0f;
 	player_ship.colorv[1] = 0.5f;
 	player_ship.colorv[2] = 0.0f;
+}
+
+void kill_enemy(int id) {
+	enemies[id].exists = false;
+	points += enemies[id].kill_points;
+	enemies_alive--;
+}
+
+void increase_difficulty() {
+	if (points % 1000 == 900) {
+		wave_size++;
+		printf("Increase difficulty\n");
+		points += 100;
+	}
+}
+
+void draw_hud() {
+	int i;
+	for (i = 0; i < player_ship.lives; i++) {
+
+		glPushMatrix();
+			glTranslatef(3.8-i*0.25, 2, ZDRAW + 1);
+			glColor3f(1.0, 1.0, 1.0);
+			glutSolidSphere(0.075, 6, 6);
+		glPopMatrix();
+	}
+
+}
+
+void renderBitmapString(float x, float y, float z, void *font, char *string) {
+	char *c;
+	glRasterPos3f(x, y, z);
+	for (c=string; *c != '\0'; c++) {
+		glutBitmapCharacter(font, *c);
+	}
 }
