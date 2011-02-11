@@ -2,35 +2,38 @@
 #include <stdio.h>
 #include <math.h>
 
+
 void init (void);
 void display (void);
 void reshape (int, int);
 void keyboard(unsigned char key, int x, int y);
 void keyboardUp(unsigned char key, int x, int y);
 void mouse (int button, int state, int x, int y);
-void sphere_movement(void);
+void userChoice(int);
+
 void create_player_ship(void);
+void player_ship_movement(void);
+void draw_player_ship(void);
+
 void create_bullet(GLfloat, GLfloat, GLfloat, GLfloat);
-void create_enemy(void);
-void create_stars(void);
-void move_star(int);
 void bullet_movement(int);
-void enemy_movement(int);
-void kill_enemy(int);
+void draw_bullets(void);
 void fire(int, int);
 void empty(int, int);
 void bomb(void);
 
-void increase_difficulty(void);
-void userChoice(int);
-
-int enemy_collision(int);
-GLfloat distance_squared(GLfloat, GLfloat, GLfloat, GLfloat);
-
-void draw_player_ship(void);
+void create_enemy(void);
+void enemy_movement(int);
 void draw_enemies(void);
-void draw_bullets(void);
+GLfloat distance_squared(GLfloat, GLfloat, GLfloat, GLfloat);
+int enemy_collision(int);
+void kill_enemy(int);
+
+void create_stars(void);
+void move_star(int);
 void draw_stars(void);
+
+void increase_difficulty(void);
 void draw_hud(void);
 void renderBitmapString(float, float, float, void*, char*);
 
@@ -67,21 +70,25 @@ typedef struct entity* Entity;
 #define BOMB_SPEED 2.0
 #define STARS 100
 
-// global color vector for use with readPixels()
-
-struct ship player_ship;
-
 GLsizei Height = 450;
 GLsizei Width = 800;
 
 bool keyStates[256];
 
+struct ship player_ship;
+
 entity bullets[BULLETS_MAX];
 int bullet_count = 0;
+
 entity enemies[ENEMIES_MAX];
 int enemy_count;
 int enemies_alive;
 
+//spawning positions for enemies
+GLfloat spawnVec[4][3] = { { 4.5f, 2.25f, ZDRAW },
+													 { -4.5f, 2.25f, ZDRAW },
+													 { -4.5f, -2.25f, ZDRAW },
+													 { 4.5f, -2.25f, ZDRAW }};
 int spawn_delay;
 int spawn_timer;
 char spawn_timer_s[64];
@@ -94,12 +101,6 @@ int points;
 char points_s[64];
 
 entity stars[STARS];
-
-//spawning positions for enemies
-GLfloat spawnVec[4][3] = { { 4.5f, 2.25f, ZDRAW },
-													 { -4.5f, 2.25f, ZDRAW },
-													 { -4.5f, -2.25f, ZDRAW },
-													 { 4.5f, -2.25f, ZDRAW }};
 
 int main (int argc, char **argv) {
   glutInit(&argc, argv);  // initialize GLUT
@@ -150,12 +151,16 @@ int main (int argc, char **argv) {
 
 void init(void) {
   glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+
 	create_player_ship();
 	create_stars();
-	int i;
-	for (i = 0; i < ENEMIES_MAX; i++) {
+
+	// clear all enemies
+	for (int i = 0; i < ENEMIES_MAX; i++) {
 		enemies[i].exists = false;
 	}
+
+	glutMotionFunc(empty);	//standard fire mode
 	enemy_count = 0;
 	enemies_alive = 0;
 	spawn_timer = 0;
@@ -168,41 +173,31 @@ void init(void) {
 
 void display (void) {
   // clear screen to current background color
-
-	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  // reset background color
+	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glLoadIdentity(); // load id matrix to reset drawing locations
 
-	increase_difficulty();
+	increase_difficulty();	// check for difficulty change based on points
 
-	if (player_ship.exists == false) {
+	if (player_ship.exists == false) {	// player has died
 		glClearColor(0.8, 0.0, 0.0, 0.5);
 		glColor3f(0.0, 0.0, 0.0);
 		renderBitmapString (-3.0, 0.5, ZDRAW, GLUT_BITMAP_HELVETICA_18,
 											"YOUR SHIP HAS BEEN DESTROYED! Press '/' to restart");
 	}
 
-
-	draw_hud();
-
 	if (spawn_timer == 0) {
-		int i;
-		for (i = 0; i < wave_size; i++) {
+		for (int i = 0; i < wave_size; i++) {
 			create_enemy();
 		}
 	}
-	spawn_timer = (spawn_timer + 1) % spawn_delay;
+	spawn_timer = (spawn_timer + 1) % spawn_delay; 	// reset counter
 
+	draw_hud();
 	draw_stars();
-
 	draw_player_ship();
-
 	draw_enemies();
-
 	draw_bullets();
 
-
-  //glFlush();  // flush buffers to the screen
-	fflush(stdout);
 	glutSwapBuffers();
 }
 
@@ -223,61 +218,66 @@ void keyboard(unsigned char key, int x, int y)
 		case (27):// esc
 			exit(0);
 			break;
-		case ('/'):
+		case ('/'):	// reset the game
 			init();
 			break;
-		case (' '):
+		case (' '):	// bomb
 			bomb();
 			break;
-		case ('`'):
+		case ('`'):	// special weaopn
 			glutMotionFunc(fire);
 			break;
-		case ('1'):
+		case ('1'):	// standard weapon
 			glutMotionFunc(empty);
 			break;
 		default:
 			break;
 	}
 
-	keyStates[key] = true;
-	// printf("%c-down\n", key);
-	fflush(stdout);
-
+	keyStates[key] = true;	// for long-press controls
 	glutPostRedisplay();
 }
 
 void keyboardUp(unsigned char key, int x, int y)
 {
-	keyStates[key] = false;
-	// printf("%c-up\n", key);
-	fflush(stdout);
+	keyStates[key] = false;	// key not down
 }
 
 void mouse (int button, int state, int x, int y)
 {
-	if ((button == GLUT_LEFT_BUTTON) && (state == GLUT_DOWN)) {
-		fire(x, y);
-	}
-
+	if ((button == GLUT_LEFT_BUTTON) && (state == GLUT_DOWN)) fire(x, y);
 	glutPostRedisplay();
 }
 
 void fire(int x, int y) {
 	float x_view, y_view;
 	x_view = (x - Width/2.0) * (VIEW_XMAX-VIEW_XMIN) / Width;
-		// this line was the cause of so much trouble: always adjust for screen y
+	// this line was the cause of so much trouble: always adjust for screen y
 	y_view = ((Height - y) - Height/2.0) * (VIEW_YMAX-VIEW_YMIN) / Height;
 
 	create_bullet(player_ship.posv[0], player_ship.posv[1], x_view, y_view);
+}
 
-	//printf("Clicked at (%f, %f)\n", x_view, y_view);
-	//fflush(stdout);
+void bomb() {
+	if (bombs > 0) {
+		bombing = true;
+		GLfloat xvec, yvec;
+
+		for (int i = 0; i < BULLETS_MAX; i++) {
+			xvec = (((rand() + 1)% Width));
+			yvec = (((rand() + 1)% Height));
+			fire(xvec, yvec);
+		}
+
+		bombs--;
+		bombing = false;
+	}
 }
 
 void draw_player_ship() {
 	if (player_ship.exists) {
 		glPushMatrix();
-			sphere_movement();
+			player_ship_movement();
 			glTranslatef(player_ship.posv[0], player_ship.posv[1], player_ship.posv[2]);
 			glColor3f(player_ship.colorv[0], player_ship.colorv[1], player_ship.colorv[2]);
 			glutWireSphere(SHIP_SIZE, 4, 4);
@@ -285,7 +285,7 @@ void draw_player_ship() {
 	}
 }
 
-void sphere_movement()
+void player_ship_movement()
 {
 	// move up or down
 		if (keyStates['w'] || keyStates['W'])
@@ -301,8 +301,7 @@ void sphere_movement()
 }
 
 void draw_bullets() {
-	int i;
-	for (i = 0; i < BULLETS_MAX; i++) {
+	for (int i = 0; i < BULLETS_MAX; i++) {
 		if ( bullets[i].exists != true ) {
 			continue;
 		}
@@ -312,17 +311,12 @@ void draw_bullets() {
 			glColor3fv(bullets[i].colorv);
 			glutWireSphere(bullets[i].sizef, 3, 3);
 		glPopMatrix();
-		// printf("bullet %d moved to (%f, %f)\n", i, bullets[i].posv[0], bullets[i].posv[1]);
 	}
-
-	//fflush(stdout);
 }
 
 void create_bullet(GLfloat x, GLfloat y, GLfloat x_view, GLfloat y_view) {
 	Entity bullet = &bullets[bullet_count];
 	bullet->exists = true;
-	//if (bullets[bullet_count].exists)
-		//printf("bullet %d created\n", bullet_count);
 
 	// set its position as the current player position
 	bullet->posv[0] = x;
@@ -330,11 +324,10 @@ void create_bullet(GLfloat x, GLfloat y, GLfloat x_view, GLfloat y_view) {
 	bullet->posv[2] = ZDRAW;
 	bullet_count = (bullet_count + 1) % BULLETS_MAX;
 
-	// set its movement vector
+	// set its movement vector (normalized)
 	GLfloat xvec = x_view - x;
 	GLfloat yvec = y_view - y;
 	GLfloat max = fabsf((fabsf(xvec) > fabsf(yvec)) ? xvec : yvec);
-	//printf("Max: %f\n", max);
 
 	bullet->dirv[0] = xvec / max;
 	bullet->dirv[1] = yvec / max;
@@ -350,7 +343,6 @@ void create_bullet(GLfloat x, GLfloat y, GLfloat x_view, GLfloat y_view) {
 
 	//printf("bullet created at (%f, %f)", bullet->posv[0], bullet->posv[1]);
 	//printf(" with vector (%f, %f)\n", bullet->dirv[0], bullet->dirv[1]);
-
 	//fflush(stdout);
 }
 
@@ -379,8 +371,7 @@ void bullet_movement(int id) {
 // I know this is bad coding, but I don't have the mental wherewithall right now
 // to actually merge this with 'draw_bullets' in a 'draw_entities' method.
 void draw_enemies() {
-	int i;
-	for (i = 0; i < ENEMIES_MAX; i++) {
+	for (int i = 0; i < ENEMIES_MAX; i++) {
 		if ( enemies[i].exists != true ) {
 			continue;
 		}
@@ -402,12 +393,10 @@ void enemy_movement(int id) {
 	enemy->posv[1] += enemy->dirv[1] * ENEMY_SPEED;	// y
 
 	// detect out of bounds (plus a buffer distance)
-	if (enemy->posv[0] > VIEW_XMAX ||
-			enemy->posv[0] < VIEW_XMIN ){
+	if (enemy->posv[0] > VIEW_XMAX || enemy->posv[0] < VIEW_XMIN ){
 		enemy->dirv[0] *= -1; 	//reverse direction if you've hit the border
 	}
-	else if ( enemy->posv[1] > VIEW_YMAX ||
-						enemy->posv[1] < VIEW_YMIN ) {
+	else if ( enemy->posv[1] > VIEW_YMAX || enemy->posv[1] < VIEW_YMIN ) {
 		enemy->dirv[1] *= -1;
 	}
 	else if ( distance_squared(enemy->posv[0], enemy->posv[1],
@@ -417,15 +406,12 @@ void enemy_movement(int id) {
 		player_ship.lives--;
 		if (player_ship.lives <= 0) player_ship.exists = false;
 	}
-	//fflush(stdout);
 }
 
 void create_enemy() {
 	Entity enemy = &enemies[enemy_count];
 	enemy->exists = true;
 	enemies_alive++;
-	//if (enemies[enemy_count].exists)
-		//printf("enemy %d created\n", enemy_count);
 
 	// set its position at a spawn point
 	enemy->posv[0] = spawnVec[enemy_count%4][0];
@@ -436,9 +422,6 @@ void create_enemy() {
 	// set its movement vector to a non-zero float between 0.01 and 1.00
 	GLfloat xvec = (((rand() + 1)% 200) - 100) / 100.0;
 	GLfloat yvec = (((rand() + 1)% 200) - 100) / 100.0;
-	//no need for normalization
-	//GLfloat max = fabsf((fabsf(xvec) > fabsf(yvec)) ? xvec : yvec);
-	//printf("Max: %f\n", max);
 
 	enemy->dirv[0] = xvec * (rand() % 3) + 1;
 	enemy->dirv[1] = yvec * (rand() % 3) + 1;
@@ -453,15 +436,12 @@ void create_enemy() {
 
 	//printf("enemy created at (%f, %f)", enemy->posv[0], enemy->posv[1]);
 	//printf(" with vector (%f, %f)\n", enemy->dirv[0], enemy->dirv[1]);
-
 	//fflush(stdout);
 }
 
 int enemy_collision(int bullet_id) {
 	Entity bullet = &bullets[bullet_id];
-
-	int i;
-	for (i = 0; i < ENEMIES_MAX; i++) {
+	for (int i = 0; i < ENEMIES_MAX; i++) {
 		if (enemies[i].exists == false) continue;
 		if (distance_squared( enemies[i].posv[0], enemies[i].posv[1],
 												  bullet->posv[0], bullet->posv[1]) <=
@@ -497,9 +477,8 @@ void kill_enemy(int id) {
 }
 
 void increase_difficulty() {
-	if (points % 1000 == 900) {
+	if (points % 1000 == 0 && points != 0) {
 		wave_size++;
-		//printf("Increase difficulty\n");
 		points += 100;
 	}
 	if (points % 10000 == 0 && points != 0) {
@@ -509,9 +488,7 @@ void increase_difficulty() {
 }
 
 void draw_hud() {
-	int i;
-	for (i = 0; i < player_ship.lives; i++) {
-
+	for (int i = 0; i < player_ship.lives; i++) {
 		glPushMatrix();	// draw lives
 			glTranslatef(3.8-i*0.25, 2.0, ZDRAW + 1);
 			glColor3f(1.0, 0.1, 0.1);
@@ -519,7 +496,7 @@ void draw_hud() {
 		glPopMatrix();
 	}
 
-	for (i = 0; i < bombs; i++) {
+	for (int i = 0; i < bombs; i++) {
 		glPushMatrix(); 	// Draw bombs
 			glTranslatef(3.8-i*0.25, -2.0, ZDRAW + 1);
 			glColor3f(0.1, 1.0, 0.1);
@@ -532,9 +509,9 @@ void draw_hud() {
 
 	sprintf(spawn_timer_s, "SPAWN IN %g", (spawn_delay-spawn_timer) / 100.0);
 	renderBitmapString (-3.8, -2.0, ZDRAW + 1, GLUT_BITMAP_HELVETICA_18, spawn_timer_s);
-
 }
 
+/* taken from examples online */
 void renderBitmapString(float x, float y, float z, void *font, char *string) {
 	char *c;
 	glRasterPos3f(x, y, z);
@@ -543,6 +520,7 @@ void renderBitmapString(float x, float y, float z, void *font, char *string) {
 	}
 }
 
+// empty string for resetting mouse functions
 void empty(int x, int y) {}
 
 void userChoice(int option) {
@@ -587,31 +565,8 @@ void userChoice(int option) {
 	}
 }
 
-void bomb() {
-	if (bombs > 0) {
-		bombing = true;
-		int i;
-		GLfloat xvec, yvec;
-		for (i = 0; i < BULLETS_MAX; i++) {
-			xvec = (((rand() + 1)% Width));
-			yvec = (((rand() + 1)% Height));
-			fire(xvec, yvec);
-		}
-		/*
-		for (i = 0; i < ENEMIES_MAX; i++) {
-			kill_enemy(i);
-		}*/
-		bombs--;
-		//enemies_alive = 0;
-		bombing = false;
-	}
-}
-
 void draw_stars() {
-	int i;
-
-
-	for (i = 0; i < STARS; i++) {
+	for (int i = 0; i < STARS; i++) {
 		move_star(i);
 		glPushMatrix();
 			glTranslatef(stars[i].posv[0], stars[i].posv[1], stars[i].posv[2]);
@@ -622,8 +577,7 @@ void draw_stars() {
 }
 
 void create_stars() {
-	int i;
-	for (i = 0; i < STARS; i++) {
+	for (int i = 0; i < STARS; i++) {
 		stars[i].posv[0] = ((rand() % 200) - 100) / 15.0;
 		stars[i].posv[1] = ((rand() % 200) - 100) / 30.0;
 		stars[i].posv[2] = ZDRAW - 1.0;
