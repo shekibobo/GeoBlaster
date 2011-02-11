@@ -12,13 +12,17 @@ void sphere_movement(void);
 void create_player_ship(void);
 void create_bullet(GLfloat, GLfloat, GLfloat, GLfloat);
 void create_enemy(void);
+void create_stars(void);
+void move_star(int);
 void bullet_movement(int);
 void enemy_movement(int);
 void kill_enemy(int);
 void fire(int, int);
 void empty(int, int);
+void bomb(void);
 
 void increase_difficulty(void);
+void userChoice(int);
 
 int enemy_collision(int);
 GLfloat distance_squared(GLfloat, GLfloat, GLfloat, GLfloat);
@@ -26,6 +30,7 @@ GLfloat distance_squared(GLfloat, GLfloat, GLfloat, GLfloat);
 void draw_player_ship(void);
 void draw_enemies(void);
 void draw_bullets(void);
+void draw_stars(void);
 void draw_hud(void);
 void renderBitmapString(float, float, float, void*, char*);
 
@@ -48,19 +53,19 @@ struct entity {
 
 typedef struct entity* Entity;
 
-
-
 #define SHIP_SIZE 0.2f
 #define VIEW_XMAX 4.8
 #define VIEW_XMIN -4.8
 #define VIEW_YMAX 2.6
 #define VIEW_YMIN -2.6
-#define BULLETS_MAX 500
+#define BULLETS_MAX 300
 #define ENEMIES_MAX 500
 #define ZDRAW -5.0f
 #define BULLET_SPEED 0.1
 #define ENEMY_SPEED 0.01
 #define MOVE_INCREMENT 0.05f	//movement of the player ship
+#define BOMB_SPEED 2.0
+#define STARS 100
 
 // global color vector for use with readPixels()
 
@@ -80,10 +85,13 @@ int enemies_alive;
 int spawn_delay;
 int spawn_timer;
 int wave_size;
-int fire_speed;
-int fire_charge;
+
+int bombs;
+bool bombing;
 
 int points;
+
+entity stars[STARS];
 
 //spawning positions for enemies
 GLfloat spawnVec[4][3] = { { 4.5f, 2.25f, ZDRAW },
@@ -109,7 +117,26 @@ int main (int argc, char **argv) {
 	glutIgnoreKeyRepeat(1);	// ignore long key presses
 	glutKeyboardUpFunc(keyboardUp);
 	glutMouseFunc(mouse);
-	//glutMotionFunc(fire);
+
+	int spawnRateMenu = glutCreateMenu(userChoice);
+		glutAddMenuEntry("Increase", 1);
+		glutAddMenuEntry("Decrease", 2);
+
+	int colorMenu = glutCreateMenu(userChoice);
+		glutAddMenuEntry("Orange", 4);
+		glutAddMenuEntry("Blue", 5);
+		glutAddMenuEntry("Green", 6);
+		glutAddMenuEntry("Yellow",7);
+
+
+	int menu = glutCreateMenu(userChoice);
+		glutAddMenuEntry("Reset game", 0);
+		glutAddSubMenu("Spawn Rate", spawnRateMenu);
+		glutAddSubMenu("Ship Color", colorMenu);
+		glutAddMenuEntry("Special Weapon", 3);
+		glutAddMenuEntry("Standard Weapon", 8);
+
+		glutAttachMenu(GLUT_RIGHT_BUTTON);
 
   init();
 
@@ -122,6 +149,7 @@ int main (int argc, char **argv) {
 void init(void) {
   glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	create_player_ship();
+	create_stars();
 	int i;
 	for (i = 0; i < ENEMIES_MAX; i++) {
 		enemies[i].exists = false;
@@ -131,8 +159,8 @@ void init(void) {
 	spawn_timer = 0;
 	spawn_delay = 500;
 	wave_size = 4;
-	fire_speed = 10;
-	fire_charge = 0;
+	bombs = 3;
+	bombing = false;
 	points = 0;
 }
 
@@ -144,9 +172,8 @@ void display (void) {
 
 	increase_difficulty();
 
-
 	if (player_ship.exists == false) {
-		glClearColor(1.0, 0.1, 0.1, 1.0);
+		glClearColor(0.8, 0.0, 0.0, 0.5);
 		glColor3f(0.0, 0.0, 0.0);
 		renderBitmapString (-3.0, 0.5, ZDRAW, GLUT_BITMAP_HELVETICA_18,
 											"YOUR SHIP HAS BEEN DESTROYED! Press '/' to restart");
@@ -162,7 +189,8 @@ void display (void) {
 		}
 	}
 	spawn_timer = (spawn_timer + 1) % spawn_delay;
-	fire_charge = (fire_charge + 1) % fire_speed;
+
+	draw_stars();
 
 	draw_player_ship();
 
@@ -197,6 +225,7 @@ void keyboard(unsigned char key, int x, int y)
 			init();
 			break;
 		case (' '):
+			bomb();
 			break;
 		case ('`'):
 			glutMotionFunc(fire);
@@ -251,8 +280,8 @@ void draw_player_ship() {
 		glPushMatrix();
 			sphere_movement();
 			glTranslatef(player_ship.posv[0], player_ship.posv[1], player_ship.posv[2]);
-			glColor3f(1.0, 0.5, 0.0);
-			glutWireSphere(SHIP_SIZE, 6, 6);
+			glColor3f(player_ship.colorv[0], player_ship.colorv[1], player_ship.colorv[2]);
+			glutWireSphere(SHIP_SIZE, 4, 4);
 		glPopMatrix();
 	}
 }
@@ -282,7 +311,7 @@ void draw_bullets() {
 			bullet_movement(i);
 			glTranslatef(bullets[i].posv[0], bullets[i].posv[1], bullets[i].posv[2]);
 			glColor3fv(bullets[i].colorv);
-			glutSolidSphere(bullets[i].sizef, 10, 10);
+			glutWireSphere(bullets[i].sizef, 3, 3);
 		glPopMatrix();
 		// printf("bullet %d moved to (%f, %f)\n", i, bullets[i].posv[0], bullets[i].posv[1]);
 	}
@@ -329,8 +358,8 @@ void create_bullet(GLfloat x, GLfloat y, GLfloat x_view, GLfloat y_view) {
 void bullet_movement(int id) {
 	// changes the bullets position based on the direction vector
 	Entity bullet = &bullets[id];
-	bullet->posv[0] += bullet->dirv[0] * BULLET_SPEED;	// x
-	bullet->posv[1] += bullet->dirv[1] * BULLET_SPEED;	// y
+	bullet->posv[0] += bullet->dirv[0] * (bombing ? BOMB_SPEED : BULLET_SPEED);	// x
+	bullet->posv[1] += bullet->dirv[1] * (bombing ? BOMB_SPEED : BULLET_SPEED);	// y
 
 	int hit_enemy = -1; // id of enemy that has been hit
 	// detect out of bounds (plus a buffer distance)
@@ -360,7 +389,7 @@ void draw_enemies() {
 			enemy_movement(i);
 			glTranslatef(enemies[i].posv[0], enemies[i].posv[1], enemies[i].posv[2]);
 			glColor3fv(enemies[i].colorv);
-			glutSolidTorus(enemies[i].sizef / 2.0, enemies[i].sizef, 10, 10);
+			glutWireTorus(enemies[i].sizef / 2.0, enemies[i].sizef, 10, 5);
 		glPopMatrix();
 		// printf("enemies %d moved to (%f, %f)\n", i, enemies[i].posv[0], enemies[i].posv[1]);
 	}
@@ -416,9 +445,9 @@ void create_enemy() {
 	enemy->dirv[1] = yvec * (rand() % 3) + 1;
 	enemy->dirv[2] = 0;	// not going anywhere depthwise
 
-	enemy->colorv[0] = 1.0f;
-	enemy->colorv[1] = 0.0f;
-	enemy->colorv[2] = 0.0f;
+	enemy->colorv[0] = 0.2 + (rand() % 100) / 100.0;	//random color, not black
+	enemy->colorv[1] = 0.2 + (rand() % 100) / 100.0;
+	enemy->colorv[2] = 0.2 + (rand() % 100) / 100.0;
 
 	enemy->sizef = 0.1f;
 	enemy->kill_points = 100;
@@ -470,9 +499,13 @@ void kill_enemy(int id) {
 }
 
 void increase_difficulty() {
-if (points % 1000 == 900) {
-	wave_size++;
-	//printf("Increase difficulty\n");
+	if (points % 1000 == 900) {
+		wave_size++;
+		//printf("Increase difficulty\n");
+		points += 100;
+	}
+	if (points % 10000 == 0 && points != 0) {
+		player_ship.lives++;
 		points += 100;
 	}
 }
@@ -481,13 +514,20 @@ void draw_hud() {
 	int i;
 	for (i = 0; i < player_ship.lives; i++) {
 
-		glPushMatrix();
-			glTranslatef(3.8-i*0.25, 2, ZDRAW + 1);
+		glPushMatrix();	// draw lives
+			glTranslatef(3.8-i*0.25, 2.0, ZDRAW + 1);
 			glColor3f(1.0, 1.0, 1.0);
-			glutSolidSphere(0.075, 6, 6);
+			glutWireSphere(0.075, 6, 6);
 		glPopMatrix();
 	}
 
+	for (i = 0; i < bombs; i++) {
+		glPushMatrix(); 	// Draw bombs
+			glTranslatef(3.8-i*0.25, -2.0, ZDRAW + 1);
+			glColor3f(0.1, 1.0, 0.1);
+			glutWireCone(0.075, 0.2, 10, 5);
+		glPopMatrix();
+	}
 }
 
 void renderBitmapString(float x, float y, float z, void *font, char *string) {
@@ -499,3 +539,97 @@ void renderBitmapString(float x, float y, float z, void *font, char *string) {
 }
 
 void empty(int x, int y) {}
+
+void userChoice(int option) {
+	switch (option) {
+		case 0:	// Reset Game
+			init();
+			break;
+		case 1:	// Increase spawn rate
+			spawn_delay -= (spawn_delay == 50) ? 0 : 50;
+			break;
+		case 2:	// Decrease spawn rate
+			spawn_delay += (spawn_delay == 1000) ? 0 : 50;
+			break;
+		case 3:	// Special Weapon
+			glutMotionFunc(fire);
+			break;
+		case 8: // Regular weapon
+			glutMotionFunc(empty);
+			break;
+		case 4:	// Ship orange
+			player_ship.colorv[0] = 1.0;
+			player_ship.colorv[1] = 0.5;
+			player_ship.colorv[2] = 0.0;
+			break;
+		case 5:	// Ship Blue
+			player_ship.colorv[0] = 0.1;
+			player_ship.colorv[1] = 0.1;
+			player_ship.colorv[2] = 1.0;
+			break;
+		case 6:	// Ship Green
+			player_ship.colorv[0] = 0.1;
+			player_ship.colorv[1] = 1.0;
+			player_ship.colorv[2] = 0.1;
+			break;
+		case 7:	// Ship Yellow
+			player_ship.colorv[0] = 1.0;
+			player_ship.colorv[1] = 1.0;
+			player_ship.colorv[2] = 0.1;
+			break;
+		default:
+			break;
+	}
+}
+
+void bomb() {
+	if (bombs > 0) {
+		bombing = true;
+		int i;
+		GLfloat xvec, yvec;
+		for (i = 0; i < BULLETS_MAX; i++) {
+			xvec = (((rand() + 1)% Width));
+			yvec = (((rand() + 1)% Height));
+			printf("Firing at (%f, %f)\n", xvec, yvec);
+			fflush(stdout);
+			fire(xvec, yvec);
+		}
+		/*
+		for (i = 0; i < ENEMIES_MAX; i++) {
+			kill_enemy(i);
+		}*/
+		bombs--;
+		//enemies_alive = 0;
+		bombing = false;
+	}
+}
+
+void draw_stars() {
+	int i;
+
+
+	for (i = 0; i < STARS; i++) {
+		move_star(i);
+		glPushMatrix();
+			glTranslatef(stars[i].posv[0], stars[i].posv[1], stars[i].posv[2]);
+			glColor3f(1.0, 1.0, 1.0);
+			glutSolidSphere(0.01, 3, 3);
+		glPopMatrix();
+	}
+}
+
+void create_stars() {
+	int i;
+	for (i = 0; i < STARS; i++) {
+		stars[i].posv[0] = ((rand() % 200) - 100) / 15.0;
+		stars[i].posv[1] = ((rand() % 200) - 100) / 30.0;
+		stars[i].posv[2] = ZDRAW - 1.0;
+		stars[i].dirv[0] = (((rand() + 1)% 200) - 100) / 100.0;
+		stars[i].dirv[1] = (((rand() + 1)% 200) - 100) / 100.0;
+	}
+}
+
+void move_star(int i) {
+	stars[i].posv[0] += stars[i].dirv[0] * 0.001;
+	stars[i].posv[1] += stars[i].dirv[1] * 0.001;
+}
