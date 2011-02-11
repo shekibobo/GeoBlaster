@@ -1,0 +1,35 @@
+GeoBlaster by Joshua Kovach
+C/C++, OpenGL, GLUT
+10 February 2011
+
+### Description
+A Geometry Wars clone(ish) written in C/C++ with OpenGL. Fly around in space, shoot enemies and avoid crashing into them! Use the weapons at your disposal (blaster, bombs, your own evasive maneuvers) to survive and achieve the high score!
+
+### Controls
+Movement
+- W or w : North (Up)
+- A or a : West  (Left)
+- S or s : South (Down)
+- D or d : East  (Right)
+
+Shooting
+- Left Mouse Click : Shoot in direction of click
+- LMB hold and aim (with special weapon only) : Rapid-fire in direction of pointer
+- Space : Bomb (Limit 3)
+
+Special
+- '~' : Activate special weapon
+- '1' : Activate regular weapon
+- '/' : Reset game
+- ESC : Quit
+
+Menu
+- RMB Click : Context Menu (game will not pause!)
+  - Change Spawn Rate
+    - Increase => Shorter spawn countdowns
+    - Decrease => Longer spawn countdowns
+  - Change Ship Color (4 Choices)
+  - Select Weapon (Regular, Special)
+  - Reset Game
+
+
