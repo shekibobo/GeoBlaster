@@ -530,8 +530,8 @@ void draw_hud() {
 	sprintf(points_s,"PTS: %d", points);
 	renderBitmapString (-3.8, 2.0, ZDRAW + 1, GLUT_BITMAP_HELVETICA_18, points_s);
 
-	sprintf(spawn_timer_s, "SPAWN IN ", spawn_delay-spawn_timer);
-	renderBitmapString (-3.8, 2.0, ZDRAW + 1, GLUT_BITMAP_HELVETICA_18, spawn_timer_s);
+	sprintf(spawn_timer_s, "SPAWN IN %g", (spawn_delay-spawn_timer) / 100.0);
+	renderBitmapString (-3.8, -2.0, ZDRAW + 1, GLUT_BITMAP_HELVETICA_18, spawn_timer_s);
 
 }
 
