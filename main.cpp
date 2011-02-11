@@ -90,6 +90,7 @@ int bombs;
 bool bombing;
 
 int points;
+char points_s[64];
 
 entity stars[STARS];
 
@@ -182,7 +183,7 @@ void display (void) {
 
 	draw_hud();
 
-	if (spawn_timer == 0 || enemies_alive == 0) {
+	if (spawn_timer == 0) {
 		int i;
 		for (i = 0; i < wave_size; i++) {
 			create_enemy();
@@ -493,9 +494,8 @@ void create_player_ship() {
 
 void kill_enemy(int id) {
 	enemies[id].exists = false;
-	points += enemies[id].kill_points;
+	if (player_ship.exists) points += enemies[id].kill_points;
 	enemies_alive--;
-	printf("Points: %d\n", points);
 }
 
 void increase_difficulty() {
@@ -516,7 +516,7 @@ void draw_hud() {
 
 		glPushMatrix();	// draw lives
 			glTranslatef(3.8-i*0.25, 2.0, ZDRAW + 1);
-			glColor3f(1.0, 1.0, 1.0);
+			glColor3f(1.0, 0.1, 0.1);
 			glutWireSphere(0.075, 6, 6);
 		glPopMatrix();
 	}
@@ -528,6 +528,10 @@ void draw_hud() {
 			glutWireCone(0.075, 0.2, 10, 5);
 		glPopMatrix();
 	}
+
+	sprintf(points_s,"PTS: %d", points);
+	renderBitmapString (-3.8, 2.0, ZDRAW + 1, GLUT_BITMAP_HELVETICA_18, points_s);
+
 }
 
 void renderBitmapString(float x, float y, float z, void *font, char *string) {
@@ -590,8 +594,6 @@ void bomb() {
 		for (i = 0; i < BULLETS_MAX; i++) {
 			xvec = (((rand() + 1)% Width));
 			yvec = (((rand() + 1)% Height));
-			printf("Firing at (%f, %f)\n", xvec, yvec);
-			fflush(stdout);
 			fire(xvec, yvec);
 		}
 		/*
