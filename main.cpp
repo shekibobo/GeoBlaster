@@ -84,6 +84,7 @@ int enemies_alive;
 
 int spawn_delay;
 int spawn_timer;
+char spawn_timer_s[64];
 int wave_size;
 
 int bombs;
@@ -234,9 +235,6 @@ void keyboard(unsigned char key, int x, int y)
 		case ('1'):
 			glutMotionFunc(empty);
 			break;
-
-
-
 		default:
 			break;
 	}
@@ -531,6 +529,9 @@ void draw_hud() {
 
 	sprintf(points_s,"PTS: %d", points);
 	renderBitmapString (-3.8, 2.0, ZDRAW + 1, GLUT_BITMAP_HELVETICA_18, points_s);
+
+	sprintf(spawn_timer_s, "SPAWN IN ", spawn_delay-spawn_timer);
+	renderBitmapString (-3.8, 2.0, ZDRAW + 1, GLUT_BITMAP_HELVETICA_18, spawn_timer_s);
 
 }
 
