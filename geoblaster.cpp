@@ -1,3 +1,13 @@
+/*
+ * GeoBlaster by Joshua Kovach
+ * A Geometry Wars clone(ish) written in C/C++
+ * CIS 367 : Computer Graphics
+ * Instructor: Greg Wolffe
+ * Date: 11 February 2011
+ *
+ * */
+
+
 #include <GL/glut.h>
 #include <stdio.h>
 #include <math.h>
