@@ -108,7 +108,7 @@ int main (int argc, char **argv) {
   glutInitWindowSize (Width, Height);  //set width, height of the window
   glutInitWindowPosition (100, 100);  // set position of the window
 
-  glutCreateWindow ("Virus Wars: Joshua Kovach");  // sets the title for the window
+  glutCreateWindow ("GeoBlaster by Joshua Kovach");  // sets the title for the window
 
   glutDisplayFunc(display);
 	glutIdleFunc(display);
