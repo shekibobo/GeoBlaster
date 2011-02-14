@@ -11,6 +11,7 @@
 #include <GL/glut.h>
 #include <stdio.h>
 #include <math.h>
+#include <libstd.h>
 
 
 void init (void);
@@ -79,7 +80,7 @@ typedef struct entity* Entity;
 #define BULLET_SPEED 0.2
 #define ENEMY_SPEED 0.02
 #define MOVE_INCREMENT 0.1f	//movement of the player ship
-#define MOVEMENT_TIME 1
+#define MOVEMENT_TIME 2
 #define BOMB_SPEED 2.0
 #define STARS 100
 
