@@ -127,7 +127,7 @@ int main (int argc, char **argv) {
   glutCreateWindow ("GeoBlaster by Joshua Kovach");  // sets the title for the window
 
   glutDisplayFunc(display);
-	glutIdleFunc(display);
+	//glutIdleFunc(display);
 
   glutReshapeFunc(reshape);
 	glutKeyboardFunc(keyboard);
@@ -626,6 +626,6 @@ void move_entities(int value) {
 	}
 	spawn_timer = (spawn_timer + 2) % spawn_delay; 	// reset counter
 
-	//glutPostRedisplay();
+	glutPostRedisplay();
 	glutTimerFunc(MOVEMENT_TIME, move_entities, 0);
 }
