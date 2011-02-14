@@ -9,9 +9,9 @@
 
 
 #include <GL/glut.h>
-#include <stdio.h>
-#include <math.h>
-#include <libstd.h>
+#include <cstdio>
+#include <cmath>
+#include <cstdlib>
 
 
 void init (void);
@@ -626,6 +626,6 @@ void move_entities(int value) {
 	}
 	spawn_timer = (spawn_timer + 2) % spawn_delay; 	// reset counter
 
-	glutPostRedisplay();
+	//glutPostRedisplay();
 	glutTimerFunc(MOVEMENT_TIME, move_entities, 0);
 }
