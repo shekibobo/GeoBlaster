@@ -80,7 +80,7 @@ typedef struct entity* Entity;
 #define BULLET_SPEED 0.2
 #define ENEMY_SPEED 0.02
 #define MOVE_INCREMENT 0.1f	//movement of the player ship
-#define MOVEMENT_TIME 2
+#define MOVEMENT_TIME 15
 #define BOMB_SPEED 2.0
 #define STARS 100
 
@@ -127,7 +127,7 @@ int main (int argc, char **argv) {
   glutCreateWindow ("GeoBlaster by Joshua Kovach");  // sets the title for the window
 
   glutDisplayFunc(display);
-	//glutIdleFunc(display);
+	glutIdleFunc(display);
 
   glutReshapeFunc(reshape);
 	glutKeyboardFunc(keyboard);
@@ -245,7 +245,7 @@ void keyboard(unsigned char key, int x, int y)
 	}
 
 	keyStates[key] = true;	// for long-press controls
-	glutPostRedisplay();
+	//glutPostRedisplay();
 }
 
 void keyboardUp(unsigned char key, int x, int y)
@@ -256,7 +256,7 @@ void keyboardUp(unsigned char key, int x, int y)
 void mouse (int button, int state, int x, int y)
 {
 	if ((button == GLUT_LEFT_BUTTON) && (state == GLUT_DOWN)) fire(x, y);
-	glutPostRedisplay();
+	//glutPostRedisplay();
 }
 
 void fire(int x, int y) {
@@ -624,8 +624,8 @@ void move_entities(int value) {
 			create_enemy();
 		}
 	}
-	spawn_timer = (spawn_timer + 2) % spawn_delay; 	// reset counter
+	spawn_timer = (spawn_timer + 1) % spawn_delay; 	// reset counter
 
-	glutPostRedisplay();
+	//glutPostRedisplay();
 	glutTimerFunc(MOVEMENT_TIME, move_entities, 0);
 }
