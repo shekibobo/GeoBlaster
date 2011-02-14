@@ -43,6 +43,8 @@ void create_stars(void);
 void move_star(int);
 void draw_stars(void);
 
+void move_entities(int);
+
 void increase_difficulty(void);
 void draw_hud(void);
 void renderBitmapString(float, float, float, void*, char*);
@@ -74,9 +76,10 @@ typedef struct entity* Entity;
 #define BULLETS_MAX 300
 #define ENEMIES_MAX 500
 #define ZDRAW -5.0f
-#define BULLET_SPEED 0.1
-#define ENEMY_SPEED 0.01
-#define MOVE_INCREMENT 0.05f	//movement of the player ship
+#define BULLET_SPEED 0.2
+#define ENEMY_SPEED 0.02
+#define MOVE_INCREMENT 0.1f	//movement of the player ship
+#define MOVEMENT_TIME 1
 #define BOMB_SPEED 2.0
 #define STARS 100
 
@@ -130,6 +133,7 @@ int main (int argc, char **argv) {
 	glutIgnoreKeyRepeat(1);	// ignore long key presses
 	glutKeyboardUpFunc(keyboardUp);
 	glutMouseFunc(mouse);
+	glutTimerFunc(MOVEMENT_TIME, move_entities, 0);
 
 	int spawnRateMenu = glutCreateMenu(userChoice);
 		glutAddMenuEntry("Increase", 1);
@@ -195,12 +199,7 @@ void display (void) {
 											"YOUR SHIP HAS BEEN DESTROYED! Press '/' to restart");
 	}
 
-	if (spawn_timer == 0) {
-		for (int i = 0; i < wave_size; i++) {
-			create_enemy();
-		}
-	}
-	spawn_timer = (spawn_timer + 1) % spawn_delay; 	// reset counter
+
 
 	draw_hud();
 	draw_stars();
@@ -287,7 +286,7 @@ void bomb() {
 void draw_player_ship() {
 	if (player_ship.exists) {
 		glPushMatrix();
-			player_ship_movement();
+			// player_ship_movement();
 			glTranslatef(player_ship.posv[0], player_ship.posv[1], player_ship.posv[2]);
 			glColor3f(player_ship.colorv[0], player_ship.colorv[1], player_ship.colorv[2]);
 			glutWireSphere(SHIP_SIZE, 4, 4);
@@ -316,7 +315,7 @@ void draw_bullets() {
 			continue;
 		}
 		glPushMatrix();
-			bullet_movement(i);
+			// bullet_movement(i);
 			glTranslatef(bullets[i].posv[0], bullets[i].posv[1], bullets[i].posv[2]);
 			glColor3fv(bullets[i].colorv);
 			glutWireSphere(bullets[i].sizef, 3, 3);
@@ -386,7 +385,7 @@ void draw_enemies() {
 			continue;
 		}
 		glPushMatrix();
-			enemy_movement(i);
+			//enemy_movement(i);
 			glTranslatef(enemies[i].posv[0], enemies[i].posv[1], enemies[i].posv[2]);
 			glColor3fv(enemies[i].colorv);
 			glutWireTorus(enemies[i].sizef / 2.0, enemies[i].sizef, 10, 5);
@@ -577,7 +576,7 @@ void userChoice(int option) {
 
 void draw_stars() {
 	for (int i = 0; i < STARS; i++) {
-		move_star(i);
+		//move_star(i);
 		glPushMatrix();
 			glTranslatef(stars[i].posv[0], stars[i].posv[1], stars[i].posv[2]);
 			glColor3f(1.0, 1.0, 1.0);
@@ -599,4 +598,33 @@ void create_stars() {
 void move_star(int i) {
 	stars[i].posv[0] += stars[i].dirv[0] * 0.001;
 	stars[i].posv[1] += stars[i].dirv[1] * 0.001;
+}
+
+void move_entities(int value) {
+	player_ship_movement();
+	for (int i = 0; i < BULLETS_MAX; i++) {
+		if ( bullets[i].exists != true ) {
+			continue;
+		}
+		bullet_movement(i);
+	}
+	for (int i = 0; i < ENEMIES_MAX; i++) {
+		if ( enemies[i].exists != true ) {
+			continue;
+		}
+		enemy_movement(i);
+	}
+	for (int i = 0; i < STARS; i++) {
+		move_star(i);
+	}
+
+	if (spawn_timer == 0) {
+		for (int i = 0; i < wave_size; i++) {
+			create_enemy();
+		}
+	}
+	spawn_timer = (spawn_timer + 2) % spawn_delay; 	// reset counter
+
+	glutPostRedisplay();
+	glutTimerFunc(MOVEMENT_TIME, move_entities, 0);
 }
