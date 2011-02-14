@@ -609,12 +609,14 @@ void move_entities(int value) {
 		}
 		bullet_movement(i);
 	}
+
 	for (int i = 0; i < ENEMIES_MAX; i++) {
 		if ( enemies[i].exists != true ) {
 			continue;
 		}
 		enemy_movement(i);
 	}
+
 	for (int i = 0; i < STARS; i++) {
 		move_star(i);
 	}
